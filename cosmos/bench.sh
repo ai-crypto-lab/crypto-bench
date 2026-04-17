@@ -51,7 +51,7 @@ def broadcast(rpc, i):
         "--keyring-backend", "test",
         "--home", HOME,
         "--node", f"tcp://127.0.0.1:{rpc}",
-        "--broadcast-mode", "sync",
+        "--broadcast-mode", "async",
         "--gas", "auto", "--gas-adjustment", "1.2",
         "--fees", "200stake",
         "--sequence", str(i),
@@ -100,8 +100,9 @@ out = {
     "p99_ms": pct(0.99),
     "started_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(start)),
     "notes": [
-        "mode=sync; each broadcast is CheckTx only, not necessarily committed",
+        "mode=async; broadcast returns after mempool admission",
         "sequence is driven from the client; node0 wallet is the sender",
+        "single-validator localnet; mainnet references ~1000 TPS",
     ],
 }
 sys.stdout.write(json.dumps(out, indent=2))
