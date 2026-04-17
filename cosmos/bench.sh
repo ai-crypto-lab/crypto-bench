@@ -12,11 +12,26 @@ OUT="$OUT_DIR/run-$(date -u +%Y%m%dT%H%M%SZ).json"
 
 # 4 validators, each has a wallet; we drive the burst from node0's
 # keyring and round-robin the RPC endpoint used to submit.
-RPCS=(26657 26647 26637 26627)
+# Number of validators actually running
+V=$(ls -d "$BASE"/node* 2>/dev/null | wc -l)
+RPCS=()
+for i in $(seq 0 $((V - 1))); do
+  RPCS+=($((26657 - i*10)))
+done
 
-# Recipient = node1's validator account. Fetch its address deterministically.
-TO=$("$SIMD" keys show node1 -a \
-     --keyring-backend test --home "$BASE/node1/simd")
+if [ "$V" -gt 1 ]; then
+  TO=$("$SIMD" keys show node1 -a \
+       --keyring-backend test --home "$BASE/node1/simd")
+else
+  # Single-validator mode: create a dedicated recipient key inside
+  # node0's keyring if it doesn't already exist.
+  if ! "$SIMD" keys show recipient -a --keyring-backend test --home "$BASE/node0/simd" >/dev/null 2>&1; then
+    "$SIMD" keys add recipient \
+      --keyring-backend test --home "$BASE/node0/simd" >/dev/null
+  fi
+  TO=$("$SIMD" keys show recipient -a \
+       --keyring-backend test --home "$BASE/node0/simd")
+fi
 
 PY=$(mktemp)
 cat > "$PY" <<'PY'

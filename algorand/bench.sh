@@ -43,15 +43,13 @@ start = time.time()
 accepted = 0
 for i in range(N):
     t0 = time.time()
+    # `goal clerk send` without `--out` signs + broadcasts in one call;
+    # dev-mode commits the block on demand after receipt.
     r = goal("clerk", "send",
              "-a", "1",
-             "-f", sender, "-t", recipient,
-             "--out", f"/tmp/tx-{i}.tx")
-    # In dev-mode goal submits synchronously; block it to skip pending
-    if r.returncode == 0:
-        r2 = goal("clerk", "rawsend", "-f", f"/tmp/tx-{i}.tx")
-        if r2.returncode == 0:
-            accepted += 1
+             "-f", sender, "-t", recipient)
+    if r.returncode == 0 and "Sent " in r.stdout:
+        accepted += 1
     latencies.append((time.time() - t0) * 1000.0)
 
 elapsed = (time.time() - start) * 1000.0

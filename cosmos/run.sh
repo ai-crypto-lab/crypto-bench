@@ -7,18 +7,24 @@ SIMD="$HERE/vendor/simd"
 BASE="$HERE/testnet"
 mkdir -p "$HERE/logs"
 
-for i in 0 1 2 3; do
+V=$(ls -d "$BASE"/node* 2>/dev/null | wc -l)
+for i in $(seq 0 $((V - 1))); do
   "$SIMD" start --home "$BASE/node$i/simd" \
     > "$HERE/logs/node$i.out" 2>&1 &
   echo $! > "$HERE/logs/node$i.pid"
 done
 
-echo "4 simd validators launched."
+echo "$V simd validator(s) launched."
 echo "tails: $HERE/logs/node*.out"
-echo "RPC ports: 26657, 26647, 26637, 26627"
+echo "RPC ports start at 26657"
 sleep 3
-for i in 0 1 2 3; do
-  curl -sS "http://127.0.0.1:$((26657 - i*10))/status" | \
-    python3 -c 'import sys,json; d=json.load(sys.stdin); r=d["result"]["sync_info"]; print(f"node{sys.argv[1]} block {r[\"latest_block_height\"]}")' "$i" \
-    || echo "node$i not ready yet"
-done
+python3 - <<'PY'
+import json, sys, urllib.request
+for i in range(4):
+    port = 26657 - i*10
+    try:
+        d = json.loads(urllib.request.urlopen(f"http://127.0.0.1:{port}/status", timeout=2).read())
+        print(f"node{i} block={d['result']['sync_info']['latest_block_height']}")
+    except Exception as e:
+        print(f"node{i} not ready yet ({e})")
+PY

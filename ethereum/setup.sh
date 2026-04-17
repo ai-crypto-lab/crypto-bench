@@ -10,14 +10,12 @@ if ! command -v docker >/dev/null; then
   echo "docker not found" >&2; exit 2
 fi
 
+rm -rf "$HERE/data"
 mkdir -p "$HERE/data/"{a,b,c,d}
 for d in a b c d; do
-  mkdir -p "$HERE/data/$d/keystore"
   echo "bench" > "$HERE/data/$d/password.txt"
-  if [ -z "$(ls "$HERE/data/$d/keystore" 2>/dev/null)" ]; then
-    docker run --rm -v "$HERE/data/$d":/data -w /data "$IMAGE" \
-      account new --password /data/password.txt
-  fi
+  docker run --rm --user "$(id -u):$(id -g)" -v "$HERE/data/$d":/data "$IMAGE" \
+    --datadir /data account new --password /data/password.txt
 done
 
 # Read each node's signer address
@@ -47,12 +45,71 @@ PY
 
 # Init each datadir
 for d in a b c d; do
-  docker run --rm -v "$HERE":/here -v "$HERE/data/$d":/data "$IMAGE" \
+  docker run --rm --user "$(id -u):$(id -g)" -v "$HERE":/here -v "$HERE/data/$d":/data "$IMAGE" \
     init --datadir /data /here/genesis.rendered.json
 done
 
 cd "$HERE"
+
+# Emit a .env with each node's etherbase so docker-compose can inject
+# them into the service commands.
+{
+  for d in a b c d; do
+    KS=$(ls "$HERE/data/$d/keystore" | head -1)
+    ADDR=$(python3 -c "import json; print(json.load(open('$HERE/data/$d/keystore/$KS'))['address'])")
+    echo "ETHERBASE_$(echo "$d" | tr a-z A-Z)=0x$ADDR"
+  done
+} > "$HERE/.env"
+
 docker compose up -d
-sleep 4
+sleep 5
 docker compose ps
+
+# Cross-wire peers via admin_addPeer RPC. Each node exposes an enode URL
+# on its internal p2p port 30303; private network IPs are fixed in the
+# compose file (172.56.0.10..13).
+get_enode() {
+  local container="$1"
+  docker exec "$container" geth --exec 'admin.nodeInfo.enode' attach /data/geth.ipc \
+    | tr -d '"'
+}
+wait_for_ipc() {
+  local container="$1"
+  for _ in $(seq 1 20); do
+    docker exec "$container" ls /data/geth.ipc >/dev/null 2>&1 && return 0
+    sleep 1
+  done
+  return 1
+}
+for c in eth-a eth-b eth-c eth-d; do wait_for_ipc "$c" || echo "$c ipc missing"; done
+
+ENODE_A=$(get_enode eth-a)
+ENODE_B=$(get_enode eth-b)
+ENODE_C=$(get_enode eth-c)
+ENODE_D=$(get_enode eth-d)
+
+# rewrite each enode's host to its docker-network ip
+rewrite() { echo "$1" | sed -E "s#@[^:]+:#@$2:#"; }
+ENODE_A=$(rewrite "$ENODE_A" 172.56.0.10)
+ENODE_B=$(rewrite "$ENODE_B" 172.56.0.11)
+ENODE_C=$(rewrite "$ENODE_C" 172.56.0.12)
+ENODE_D=$(rewrite "$ENODE_D" 172.56.0.13)
+
+add_peers() {
+  local self="$1"; shift
+  for peer in "$@"; do
+    docker exec "$self" geth --exec "admin.addPeer(\"$peer\")" attach /data/geth.ipc >/dev/null || true
+  done
+}
+add_peers eth-a "$ENODE_B" "$ENODE_C" "$ENODE_D"
+add_peers eth-b "$ENODE_A" "$ENODE_C" "$ENODE_D"
+add_peers eth-c "$ENODE_A" "$ENODE_B" "$ENODE_D"
+add_peers eth-d "$ENODE_A" "$ENODE_B" "$ENODE_C"
+
+sleep 3
+echo "peer counts:"
+for c in eth-a eth-b eth-c eth-d; do
+  n=$(docker exec "$c" geth --exec 'admin.peers.length' attach /data/geth.ipc 2>/dev/null)
+  echo "  $c: $n"
+done
 echo "geth 4-signer Clique cluster up on :8545..:8548"
