@@ -1,0 +1,65 @@
+version: "3.9"
+services:
+  node-a:
+    image: ethereum/client-go:v1.13.15
+    container_name: eth-a
+    command: >
+      --networkid 2026041701
+      --datadir /data
+      --mine --miner.etherbase 0x0000000000000000000000000000000000000001
+      --http --http.addr 0.0.0.0 --http.port 8545 --http.corsdomain "*"
+      --http.api eth,net,web3,personal,clique
+      --port 30303
+      --nodiscover
+      --allow-insecure-unlock
+      --unlock 0 --password /data/password.txt
+      --miner.gaslimit 25000000
+    volumes:
+      - ./data/a:/data
+    ports: ["8545:8545", "30303:30303"]
+    networks: { ethnet: { ipv4_address: 172.56.0.10 } }
+  node-b:
+    image: ethereum/client-go:v1.13.15
+    container_name: eth-b
+    command: >
+      --networkid 2026041701
+      --datadir /data
+      --mine
+      --http --http.addr 0.0.0.0 --http.port 8545 --http.api eth,net,web3,personal,clique
+      --port 30303 --nodiscover --allow-insecure-unlock
+      --unlock 0 --password /data/password.txt --miner.gaslimit 25000000
+    volumes: [./data/b:/data]
+    ports: ["8546:8545"]
+    networks: { ethnet: { ipv4_address: 172.56.0.11 } }
+  node-c:
+    image: ethereum/client-go:v1.13.15
+    container_name: eth-c
+    command: >
+      --networkid 2026041701
+      --datadir /data
+      --mine
+      --http --http.addr 0.0.0.0 --http.port 8545 --http.api eth,net,web3,personal,clique
+      --port 30303 --nodiscover --allow-insecure-unlock
+      --unlock 0 --password /data/password.txt --miner.gaslimit 25000000
+    volumes: [./data/c:/data]
+    ports: ["8547:8545"]
+    networks: { ethnet: { ipv4_address: 172.56.0.12 } }
+  node-d:
+    image: ethereum/client-go:v1.13.15
+    container_name: eth-d
+    command: >
+      --networkid 2026041701
+      --datadir /data
+      --mine
+      --http --http.addr 0.0.0.0 --http.port 8545 --http.api eth,net,web3,personal,clique
+      --port 30303 --nodiscover --allow-insecure-unlock
+      --unlock 0 --password /data/password.txt --miner.gaslimit 25000000
+    volumes: [./data/d:/data]
+    ports: ["8548:8545"]
+    networks: { ethnet: { ipv4_address: 172.56.0.13 } }
+
+networks:
+  ethnet:
+    driver: bridge
+    ipam:
+      config: [ { subnet: 172.56.0.0/16 } ]

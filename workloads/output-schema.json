@@ -1,0 +1,33 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "crypto-bench output schema",
+  "description": "Per-run metrics file emitted by each target's bench.sh.",
+  "type": "object",
+  "required": [
+    "target", "consensus", "version", "cluster", "workload",
+    "attempted", "accepted", "elapsed_ms", "committed_tps", "started_at"
+  ],
+  "properties": {
+    "target":     { "type": "string", "enum": ["openhash", "fabric", "cosmos", "ethereum", "solana", "algorand"] },
+    "consensus":  { "type": "string" },
+    "version":    { "type": "string" },
+    "cluster": {
+      "type": "object",
+      "required": ["nodes", "location"],
+      "properties": {
+        "nodes":    { "type": "integer", "minimum": 1 },
+        "location": { "type": "string" }
+      }
+    },
+    "workload":      { "type": "string", "enum": ["transfer-500"] },
+    "attempted":     { "type": "integer", "minimum": 0 },
+    "accepted":      { "type": "integer", "minimum": 0 },
+    "elapsed_ms":    { "type": "number",  "minimum": 0 },
+    "committed_tps": { "type": "number",  "minimum": 0 },
+    "p50_ms":        { "type": "number",  "minimum": 0 },
+    "p95_ms":        { "type": "number",  "minimum": 0 },
+    "p99_ms":        { "type": "number",  "minimum": 0 },
+    "started_at":    { "type": "string", "format": "date-time" },
+    "notes":         { "type": "array",  "items": { "type": "string" } }
+  }
+}

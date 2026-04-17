@@ -1,0 +1,12 @@
+version: "3.9"
+services:
+  algod:
+    image: algorand/algod:stable
+    container_name: algobench-algod
+    ports:
+      - "4001:4001"
+      - "4002:4002"
+    environment:
+      DEV_MODE: "1"
+      TOKEN: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      ADMIN_TOKEN: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
